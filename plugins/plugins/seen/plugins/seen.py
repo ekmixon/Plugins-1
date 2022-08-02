@@ -35,10 +35,10 @@ class seen(WebPlugin):
         return [{'text': 'See',   'action': 'see',   'icon': 'eye-open'}]
 
   def onCVEOpen(self, cve, **args):
-    if args["current_user"].is_authenticated():
-      if db.p_readUserSetting(self.collectionName, args["current_user"].get_id(), "mode") == "auto":
-        query = {'user': args["current_user"].get_id()}
-        db.p_addToList(self.collectionName, query, "cves", cve)
+    if (args["current_user"].is_authenticated() and db.p_readUserSetting(
+        self.collectionName, args["current_user"].get_id(), "mode") == "auto"):
+      query = {'user': args["current_user"].get_id()}
+      db.p_addToList(self.collectionName, query, "cves", cve)
 
   def onCVEAction(self, cve, action, **args):
     try:
@@ -76,12 +76,11 @@ class seen(WebPlugin):
 
   def doFilter(self, filters, **args):
     for fil in filters.keys():
-      if fil == "hideSeen":
-        if args["current_user"].is_authenticated():
-          if filters[fil] == "hide":
-            cves = db.p_queryOne(self.collectionName, {'user': args["current_user"].get_id()})
-            cves = cves["cves"] if cves and 'cves' in cves else []
-            return {'id': {"$nin": cves}}
+      if (fil == "hideSeen" and args["current_user"].is_authenticated()
+          and filters[fil] == "hide"):
+        cves = db.p_queryOne(self.collectionName, {'user': args["current_user"].get_id()})
+        cves = cves["cves"] if cves and 'cves' in cves else []
+        return {'id': {"$nin": cves}}
     return {}
 
   def mark(self, cve, **args):

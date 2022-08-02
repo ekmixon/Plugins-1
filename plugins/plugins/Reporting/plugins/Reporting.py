@@ -130,10 +130,7 @@ class Reporting(WebPlugin):
   # Copied from index.py. Changes made are:
   #  > added self
   def compile(self, regexes):
-    r=[]
-    for rule in regexes:
-      r.append(re.compile(rule))
-    return r
+    return [re.compile(rule) for rule in regexes]
 
   def getPage(self, **args):
     page="reporting.html"
