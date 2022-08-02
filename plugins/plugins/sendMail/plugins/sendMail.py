@@ -43,7 +43,7 @@ class sendMail(WebPlugin):
     try:
       self.template = open(template, "r").read()
     except:
-      raise ValueError('Could not open the template! %s'%template)
+      raise ValueError(f'Could not open the template! {template}')
 
   def getCVEActions(self, cve, **args):
     var = [self.serverCreds[0], self.techTeam, self.senderCreds[0], self.senderCreds[1]]
@@ -51,24 +51,25 @@ class sendMail(WebPlugin):
     return [{'text': 'Send CVE to the tech team', 'action': 'sendMail', 'icon': 'envelope'}]
 
   def onCVEAction(self, cve, action, **args):
-    if action == "sendMail":
-      server=smtplib.SMTP('%s:%s'%(self.serverCreds))
-      server.starttls()
-      server.login(self.senderCreds[0], self.senderCreds[1])
-      subject  = self.subject
-      template = self.template
-      cveInfo = db.getCVE(cve)
-      cvss = cveInfo.get("cvss")
-      if not cvss: cvss= "N/A"
-      if type(cvss) == float: cvss=str(cvss)
-      template = template.replace("<<CVE>>",     cveInfo.get("id"))
-      template = template.replace("<<CVSS>>",    cvss)
-      template = template.replace("<<Subject>>", cveInfo.get("summary"))
-      template = template.replace("<<Sources>>", "\n".join(cveInfo.get("references")))
-      cwe = "CWE:\n * " + cveInfo.get("cwe") if cveInfo.get("cwe") else ""
-      template = template.replace("<<CWE>>", cwe)
-      
-      body="Subject: %s\n\n%s"%(subject, template)
-      server.sendmail(self.senderCreds[0], self.techTeam, body)
-      server.quit()
-      return True
+    if action != "sendMail":
+      return
+    server=smtplib.SMTP('%s:%s'%(self.serverCreds))
+    server.starttls()
+    server.login(self.senderCreds[0], self.senderCreds[1])
+    subject  = self.subject
+    template = self.template
+    cveInfo = db.getCVE(cve)
+    cvss = cveInfo.get("cvss")
+    if not cvss: cvss= "N/A"
+    if type(cvss) == float: cvss=str(cvss)
+    template = template.replace("<<CVE>>",     cveInfo.get("id"))
+    template = template.replace("<<CVSS>>",    cvss)
+    template = template.replace("<<Subject>>", cveInfo.get("summary"))
+    template = template.replace("<<Sources>>", "\n".join(cveInfo.get("references")))
+    cwe = "CWE:\n * " + cveInfo.get("cwe") if cveInfo.get("cwe") else ""
+    template = template.replace("<<CWE>>", cwe)
+
+    body="Subject: %s\n\n%s"%(subject, template)
+    server.sendmail(self.senderCreds[0], self.techTeam, body)
+    server.quit()
+    return True

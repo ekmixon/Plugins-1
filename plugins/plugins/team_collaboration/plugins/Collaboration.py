@@ -32,9 +32,10 @@ class Collaboration(WebPlugin):
 
   def loadSettings(self, reader):
     uid = "_"*(len(self.uid)-len(self.uid.strip("_")))
-    self.name  =     reader.read("Collaboration"+uid, "name", "Team Collaboration")
-    self.shortName = reader.read("Collaboration"+uid, "short name", "")
-    collection =     reader.read("Collaboration"+uid, "collection", "").replace(" ", "_")
+    self.name = reader.read(f"Collaboration{uid}", "name", "Team Collaboration")
+    self.shortName = reader.read(f"Collaboration{uid}", "short name", "")
+    collection = reader.read(f"Collaboration{uid}", "collection", "").replace(
+        " ", "_")
     self.collectionName = self._createCollection(collection)
 
   def _getUserSetting(self, user, setting, default):
@@ -46,7 +47,8 @@ class Collaboration(WebPlugin):
 
   def _createCollection(self, subset=None):
     collection = "team_collab"
-    if subset: collection = collection + "_" + subset
+    if subset:
+      collection = f"{collection}_{subset}"
     return collection
 
   def _userAlowed(self, user):
@@ -60,19 +62,20 @@ class Collaboration(WebPlugin):
     return False
 
   def getCVEActions(self, cve, **args):
-    if self._userAlowed(args["current_user"]):
-      if db.p_readUserSetting(self.collectionName, args["current_user"].get_id(), "buttons") == "show":
-        userdata = db.p_queryOne(self.collectionName, {})
-        shortname = self.shortName + " " if self.shortName else ""
-        if userdata and 'cves' in  userdata and cve in userdata['cves']:
-          return [{'text': shortname+'Uncheck', 'action': 'uncheck', 'icon': 'check'}]
-        else:
-          return [{'text': shortname+'Check',   'action': 'check',   'icon': 'unchecked'}]
+    if (self._userAlowed(args["current_user"]) and db.p_readUserSetting(
+        self.collectionName, args["current_user"].get_id(),
+        "buttons") == "show"):
+      userdata = db.p_queryOne(self.collectionName, {})
+      shortname = f"{self.shortName} " if self.shortName else ""
+      if userdata and 'cves' in  userdata and cve in userdata['cves']:
+        return [{'text': f'{shortname}Uncheck', 'action': 'uncheck', 'icon': 'check'}]
+      else:
+        return [{'text': f'{shortname}Check', 'action': 'check', 'icon': 'unchecked'}]
 
   def onCVEOpen(self, cve, **args):
-    if self._userAlowed(args["current_user"]):
-      if db.p_readUserSetting(self.collectionName, args["current_user"].get_id(), "mode") == "auto":
-        db.p_addToList(self.collectionName, {}, "cves", cve)
+    if (self._userAlowed(args["current_user"]) and db.p_readUserSetting(
+        self.collectionName, args["current_user"].get_id(), "mode") == "auto"):
+      db.p_addToList(self.collectionName, {}, "cves", cve)
 
   def onCVEAction(self, cve, action, **args):
     try:
@@ -103,22 +106,39 @@ class Collaboration(WebPlugin):
       return False
 
   def getFilters(self, **args):
-    if self._userAlowed(args["current_user"]):
-      if db.p_readUserSetting(self.collectionName, args["current_user"].get_id(), "filters") == "show":
-        shortname = self.shortName + " " if self.shortName else ""
-        return [{'id': shortname+'Checked', 'filters': [{'id': self.uid+"_"+'hidechecked', 'type': 'select',
-                                                              'values':[{'id':'show', 'text': 'Show'},
-                                                                        {'id':'hide', 'text': 'Hide'}]}]}]
+    if (self._userAlowed(args["current_user"]) and db.p_readUserSetting(
+        self.collectionName, args["current_user"].get_id(),
+        "filters") == "show"):
+      shortname = f"{self.shortName} " if self.shortName else ""
+      return [{
+          'id':
+          f'{shortname}Checked',
+          'filters': [{
+              'id':
+              f"{self.uid}_hidechecked",
+              'type':
+              'select',
+              'values': [
+                  {
+                      'id': 'show',
+                      'text': 'Show'
+                  },
+                  {
+                      'id': 'hide',
+                      'text': 'Hide'
+                  },
+              ],
+          }],
+      }]
     return []
 
   def doFilter(self, filters, **args):
     for fil in filters.keys():
-      if fil == self.uid+"_"+"hidechecked":
-        if self._userAlowed(args["current_user"]):
-          if filters[fil] == "hide":
-            cves = db.p_queryOne(self.collectionName, {})
-            cves = cves["cves"] if cves and 'cves' in cves else []
-            return {'id': {"$nin": cves}}
+      if (fil == f"{self.uid}_hidechecked"
+          and self._userAlowed(args["current_user"]) and filters[fil] == "hide"):
+        cves = db.p_queryOne(self.collectionName, {})
+        cves = cves["cves"] if cves and 'cves' in cves else []
+        return {'id': {"$nin": cves}}
     return {}
 
   def mark(self, cve, **args):
@@ -154,12 +174,10 @@ if __name__ == '__main__':
     # Get collection to manipulate
     wd = Collaboration()
     collection = wd._createCollection(args.c)
-    # Get list of users
-    users = db.p_readSetting(collection, "group")
-    if not users: users = []
+    users = db.p_readSetting(collection, "group") or []
     if type(users) is not list: users = [users]
-    a = args.a if args.a else []
-    d = args.d if args.d else []
+    a = args.a or []
+    d = args.d or []
     for user in a:
       if user not in users:
         users.append(user)
@@ -171,7 +189,7 @@ if __name__ == '__main__':
     # Get collection to manipulate
     wd = Collaboration()
     collection = wd._createCollection(args.c)
-    print("You are manipulating %s"%collection)
+    print(f"You are manipulating {collection}")
     confirm = input("Do you want to drop the user list? [y/N]")
     if confirm.lower() in ["y", "yes"]: db.p_deleteSettings(collection)
     confirm = input("Do you want to drop the data? [y/N]")

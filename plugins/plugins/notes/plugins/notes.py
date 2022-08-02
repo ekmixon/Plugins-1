@@ -42,14 +42,13 @@ class notes(WebPlugin):
 
   def _getNotesFor(self, cve, user):
     data = db.p_queryOne(self.collectionName, {'cve': cve})
-    notes = []
-    if data and 'notes' in  data and user in [x["user"] for x in data['notes'] if 'user' in x]:
-      notes = [x for x in data['notes'] if x.get('user') == user]
-    return notes
+    return ([x for x in data['notes']
+             if x.get('user') == user] if data and 'notes' in data
+            and user in [x["user"]
+                         for x in data['notes'] if 'user' in x] else [])
 
   def _deleteIfExists(self, cve, user, noteID):
-    note = [x for x in self._getNotesFor(cve, user) if x["id"] == noteID]
-    if note:
+    if note := [x for x in self._getNotesFor(cve, user) if x["id"] == noteID]:
       db.p_removeFromList(self.collectionName, {'cve': cve}, "notes", note[0])
 
   def cvePluginInfo(self, cve, **args):
